@@ -16,17 +16,42 @@ It is written for coding agents such as Claude Code, but it reads fine as a chec
 
 ## Install
 
-**Claude Code (personal):**
+You need Node.js 16 or newer.
+
+```bash
+npx github:KushagraGitter/iphone-duo-porting-skill
+```
+
+This installs the skill to `~/.claude/skills/iphone-duo-porting`, so Claude Code can use it in every project. Run the same command again to update.
+
+| Option | What it does |
+|---|---|
+| `--project` | Installs into `./.claude/skills`, for the current repo only. Commit that folder to share the skill with your team. |
+| `--dir <path>` | Installs into any skills folder, for other agents. Example: `--dir ~/.codex/skills` |
+| `--uninstall` | Removes the skill. Combine with `--project` or `--dir` to remove it from that folder. |
+| `--help` | Shows all options. |
+
+```bash
+# This project only
+npx github:KushagraGitter/iphone-duo-porting-skill --project
+
+# Remove it
+npx github:KushagraGitter/iphone-duo-porting-skill --uninstall
+```
+
+**Using the skills CLI:** the repo follows the standard `skills/<name>/SKILL.md` layout, so [`npx skills`](https://github.com/vercel-labs/skills) works too. It can also install into other agents:
+
+```bash
+npx skills add KushagraGitter/iphone-duo-porting-skill
+```
+
+**Manually:**
 
 ```bash
 git clone https://github.com/KushagraGitter/iphone-duo-porting-skill.git
 mkdir -p ~/.claude/skills
 cp -r iphone-duo-porting-skill/skills/iphone-duo-porting ~/.claude/skills/
 ```
-
-**Claude Code (one project):** copy `skills/iphone-duo-porting` into `<your-repo>/.claude/skills/`.
-
-**Other agents:** point the agent at `skills/iphone-duo-porting/SKILL.md`.
 
 Then ask something like *"Port this app to iPhone Duo"* or *"Add a fold-to-scrub control using the hinge."*
 

@@ -1,0 +1,30 @@
+{
+  "name": "iphone-duo-porting-skill",
+  "version": "1.0.0",
+  "description": "Agent skill for porting iOS apps to the foldable iPhone Duo and using its hinge, fold and camera APIs (iOS 27.1)",
+  "bin": {
+    "iphone-duo-porting-skill": "bin/install.js"
+  },
+  "files": [
+    "bin/",
+    "skills/"
+  ],
+  "engines": {
+    "node": ">=16"
+  },
+  "keywords": [
+    "claude-code",
+    "agent-skill",
+    "skills",
+    "iphone-duo",
+    "foldable",
+    "ios",
+    "swiftui",
+    "uikit"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/KushagraGitter/iphone-duo-porting-skill.git"
+  },
+  "author": "KushagraGitter"
+}
