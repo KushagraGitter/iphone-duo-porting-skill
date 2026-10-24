@@ -2,6 +2,8 @@
 
 An agent skill that helps developers port iOS apps to the foldable **iPhone Duo** and adopt its iOS 27.1 APIs: the hinge, reserved regions (the fold and the cameras), `ArrangementView`, toolbars on the side of the screen, the two front cameras, and content on the outer display.
 
+**Docs and API reference:** https://kushagragitter.github.io/iphone-duo-porting-skill/
+
 It is written for coding agents such as Claude Code, but it reads fine as a checklist for people too.
 
 ## What it covers

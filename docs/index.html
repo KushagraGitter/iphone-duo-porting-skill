@@ -1,0 +1,1104 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>iPhone Duo Porting Guide</title>
+<meta name="description" content="Port your iOS app to the foldable iPhone Duo. API reference, guides and examples for the hinge, the fold, side toolbars and dual front cameras (iOS 27.1), plus an agent skill that does the work.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@500;600;700&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<style>
+/* Layout: sticky top bar, left chapter rail (collapses on phones), single reading column; hero pairs the install command with a live fold demo. */
+:root{
+  --bg:#f5f6f8; --surface:#ffffff; --sunk:#eceef2; --line:#dcdfe6; --line-strong:#c4c9d4;
+  --ink:#13161d; --ink-2:#3c4250; --muted:#687083;
+  --accent:#2f54d6; --accent-ink:#ffffff; --accent-soft:#e6ebfb;
+  --fold:#d9480f; --fold-soft:#fde9df;
+  --ok:#1f7a4d; --ok-soft:#e1f3e9; --warn:#a15c00; --warn-soft:#fbefd9;
+  --code-bg:#11141b; --code-fg:#e3e6ee; --code-dim:#7d8597; --code-kw:#ff8f6b; --code-ty:#8fb4ff; --code-str:#9fdc9a; --code-num:#f2c46d; --code-fn:#e8c2ff; --code-line:#232836;
+  --device:#2b3039; --device-edge:#4a515e; --screen:#0c0e13;
+  --display:"Familjen Grotesk", "Helvetica Neue", Arial, sans-serif;
+  --body:"Atkinson Hyperlegible", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono:"JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --radius:12px; --rail:248px; --top:60px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0c0e12; --surface:#14171d; --sunk:#1a1e26; --line:#262b35; --line-strong:#353b48;
+  --ink:#eceef3; --ink-2:#c1c6d2; --muted:#8d94a5;
+  --accent:#7d9bff; --accent-ink:#0c0e12; --accent-soft:#1c2440;
+  --fold:#ff8a4c; --fold-soft:#3a2117;
+  --ok:#5fd09a; --ok-soft:#14291f; --warn:#f0b35a; --warn-soft:#2f2412;
+  --code-bg:#090b0f; --code-line:#1c212c;
+  --device:#3a404c; --device-edge:#5a6271; --screen:#050608;
+  color-scheme:dark;}}
+:root[data-theme="dark"]{
+  --bg:#0c0e12; --surface:#14171d; --sunk:#1a1e26; --line:#262b35; --line-strong:#353b48;
+  --ink:#eceef3; --ink-2:#c1c6d2; --muted:#8d94a5;
+  --accent:#7d9bff; --accent-ink:#0c0e12; --accent-soft:#1c2440;
+  --fold:#ff8a4c; --fold-soft:#3a2117;
+  --ok:#5fd09a; --ok-soft:#14291f; --warn:#f0b35a; --warn-soft:#2f2412;
+  --code-bg:#090b0f; --code-line:#1c212c;
+  --device:#3a404c; --device-edge:#5a6271; --screen:#050608;
+  color-scheme:dark;}
+
+*,*::before,*::after{box-sizing:border-box}
+html{scroll-padding-top:calc(var(--top) + 16px);-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16.5px;line-height:1.62}
+a{color:var(--accent);text-underline-offset:3px;text-decoration-thickness:1px}
+a:hover{text-decoration-thickness:2px}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
+img{max-width:100%}
+code{font-family:var(--mono);font-size:.86em;background:var(--sunk);border:1px solid var(--line);padding:.08em .38em;border-radius:6px;overflow-wrap:anywhere}
+h1,h2,h3,h4{font-family:var(--display);line-height:1.12;text-wrap:balance;margin:0}
+h2{font-size:clamp(28px,3.6vw,36px);font-weight:700;letter-spacing:-.02em}
+h3{font-size:22px;font-weight:600;letter-spacing:-.01em}
+h4{font-size:17px;font-weight:600}
+p{margin:0}
+.eyebrow{font-family:var(--mono);font-size:12px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+
+/* top bar */
+.topbar{position:sticky;top:0;z-index:20;height:var(--top);display:flex;align-items:center;gap:14px;background:color-mix(in srgb,var(--bg) 86%,transparent);backdrop-filter:saturate(1.4) blur(10px);-webkit-backdrop-filter:saturate(1.4) blur(10px);border-bottom:1px solid var(--line);padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.brand{display:flex;align-items:center;gap:10px;color:var(--ink);text-decoration:none;font-family:var(--display);font-weight:700;font-size:17px;letter-spacing:-.01em;white-space:nowrap}
+.brand svg{flex:none}
+.topbar .spacer{flex:1}
+.toplinks{display:flex;gap:6px;align-items:center}
+.iconbtn,.toplinks a{display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 12px;border-radius:9px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font:600 14px var(--body);text-decoration:none;cursor:pointer}
+.iconbtn:hover,.toplinks a:hover{border-color:var(--line-strong)}
+.menubtn{display:none}
+@media (max-width:980px){.menubtn{display:inline-flex}}
+@media (max-width:520px){.toplinks .gh-label{display:none}.brand .full{display:none}}
+
+/* shell */
+.shell{display:grid;grid-template-columns:var(--rail) minmax(0,1fr);max-width:1240px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.rail{position:sticky;top:var(--top);align-self:start;max-height:calc(100vh - var(--top));overflow-y:auto;padding:28px 18px 40px 0;border-right:1px solid var(--line)}
+.rail h5{font:600 11px var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:22px 0 6px 10px}
+.rail h5:first-child{margin-top:0}
+.rail a{display:block;padding:5px 10px;border-radius:8px;color:var(--ink-2);text-decoration:none;font-size:14.5px;line-height:1.35}
+.rail a:hover{background:var(--sunk);color:var(--ink)}
+.rail a.on{background:var(--accent-soft);color:var(--accent);font-weight:700}
+.rail a code{background:none;border:0;padding:0;font-size:13px}
+main{min-width:0;padding:0 0 96px 48px}
+@media (max-width:980px){
+  .shell{grid-template-columns:minmax(0,1fr)}
+  main{padding-left:0}
+  .rail{position:fixed;top:var(--top);left:0;bottom:0;width:min(300px,86vw);max-height:none;background:var(--surface);z-index:30;padding:20px 16px 40px max(16px,env(safe-area-inset-left,0px));border-right:1px solid var(--line);transform:translateX(-102%);visibility:hidden;transition:transform .22s ease,visibility 0s .22s}
+  body.nav-open .rail{box-shadow:0 20px 60px rgba(0,0,0,.25);visibility:visible;transition:transform .22s ease}
+  body.nav-open .rail{transform:none}
+  .scrim{position:fixed;inset:var(--top) 0 0 0;background:rgba(10,12,16,.4);z-index:25;display:none}
+  body.nav-open .scrim{display:block}
+}
+
+/* sections */
+section.doc{padding-top:64px;display:grid;gap:18px;max-width:860px}
+section.doc > p, .prose p{color:var(--ink-2);max-width:68ch}
+.prose{display:grid;gap:14px}
+.lead{font-size:18.5px;color:var(--ink-2);max-width:62ch}
+.sechead{display:grid;gap:8px;margin-bottom:4px}
+hr.sep{border:0;border-top:1px solid var(--line);margin:56px 0 0;max-width:860px}
+
+/* hero */
+.hero{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr);gap:40px;align-items:center;padding:56px 0 8px;max-width:1040px}
+@media (max-width:1100px){.hero{grid-template-columns:minmax(0,1fr)}}
+.hero h1{font-size:clamp(40px,6vw,66px);font-weight:700;letter-spacing:-.035em;line-height:.98}
+.hero h1 em{font-style:normal;color:var(--fold)}
+.hero .copy{display:grid;gap:22px}
+.install{display:flex;align-items:stretch;border:1px solid var(--line-strong);border-radius:12px;background:var(--code-bg);overflow:hidden;max-width:560px}
+.install code{flex:1;min-width:0;background:none;border:0;color:var(--code-fg);padding:14px 16px;font-size:14px;white-space:nowrap;overflow-x:auto}
+.install code .p{color:var(--code-dim);user-select:none}
+.copybtn{flex:none;border:0;border-left:1px solid var(--code-line);background:transparent;color:var(--code-fg);font:600 13px var(--body);padding:0 14px;cursor:pointer;min-width:74px}
+.copybtn:hover{background:var(--code-line)}
+.ctas{display:flex;flex-wrap:wrap;gap:10px}
+.btn{display:inline-flex;align-items:center;gap:8px;height:42px;padding:0 18px;border-radius:10px;font:700 15px var(--body);text-decoration:none;border:1px solid var(--line-strong);color:var(--ink);background:var(--surface)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn:hover{text-decoration:none;filter:brightness(1.05)}
+.meta{display:flex;flex-wrap:wrap;gap:8px 18px;color:var(--muted);font-size:14px}
+.meta span{display:inline-flex;gap:6px;align-items:center}
+.meta b{color:var(--ink-2);font-weight:700}
+/* fold demo */
+.demo{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:18px;display:grid;gap:14px;min-width:0}
+.demo-stage{position:relative;height:250px;border-radius:12px;background:radial-gradient(ellipse 70% 60% at 50% 62%,var(--sunk),var(--surface));overflow:hidden;perspective:1100px}
+.dev{position:absolute;left:50%;top:58%;width:0;height:0;transform-style:preserve-3d;transform:rotateX(58deg) rotateZ(-24deg)}
+.half{position:absolute;width:118px;height:150px;top:-75px;transform-style:preserve-3d;border-radius:12px}
+.half .face{position:absolute;inset:0;border-radius:12px;backface-visibility:hidden;-webkit-backface-visibility:hidden}
+.half .scr{background:var(--screen);box-shadow:inset 0 0 0 4px var(--device),inset 0 0 0 5px var(--device-edge);padding:9px;display:flex}
+.half .bk{transform:rotateY(180deg);background:linear-gradient(135deg,var(--device-edge),var(--device))}
+.half.l{left:-118px;transform-origin:100% 50%}
+.half.r{left:0;transform-origin:0 50%}
+.scr .ui{flex:1;border-radius:6px;background:linear-gradient(160deg,#1d2433,#10141c);display:grid;grid-template-rows:auto 1fr;gap:6px;padding:8px;overflow:hidden}
+.scr .ui i{display:block;height:6px;border-radius:3px;background:#3a4560}
+.scr .ui i.w{width:70%}.scr .ui i.s{width:45%}
+.scr .ui .blk{border-radius:5px;background:#24304a}
+.foldline{position:absolute;left:-2px;top:-75px;width:4px;height:150px;background:var(--fold);border-radius:2px;opacity:0;transition:opacity .2s;box-shadow:0 0 14px var(--fold)}
+.demo-read{display:grid;grid-template-columns:minmax(0,.85fr) minmax(0,1.3fr) minmax(0,.85fr);gap:8px}
+@media (max-width:520px){.demo-read{grid-template-columns:minmax(0,1fr)}}
+.readout{background:var(--sunk);border:1px solid var(--line);border-radius:10px;padding:8px 10px;min-width:0}
+.readout .k{font:500 11px var(--mono);color:var(--muted);letter-spacing:.04em}
+.readout .v{font:600 14px var(--mono);color:var(--ink);font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.readout .v.fold{color:var(--fold)}
+.demo-ctl{display:flex;align-items:center;gap:12px}
+.demo-ctl label{font:600 13px var(--body);color:var(--muted);white-space:nowrap}
+.demo-ctl input{flex:1;min-width:0;accent-color:var(--fold)}
+.demo-note{font-size:13px;color:var(--muted)}
+
+/* cards and grids */
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+@media (max-width:760px){.grid2,.grid3{grid-template-columns:minmax(0,1fr)}}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:18px;display:grid;gap:8px;align-content:start;min-width:0}
+.card p{color:var(--ink-2);font-size:15.5px}
+.card .eyebrow{font-size:11px}
+
+/* tables */
+.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:var(--radius);background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:15px;min-width:520px}
+th,td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font:600 12px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);background:var(--sunk)}
+tr:last-child td{border-bottom:0}
+td code{white-space:nowrap}
+
+/* steps */
+ol.steps{list-style:none;margin:0;padding:0;display:grid;gap:0;counter-reset:s;border-left:2px solid var(--line);margin-left:15px}
+ol.steps li{counter-increment:s;position:relative;padding:0 0 22px 32px}
+ol.steps li:last-child{padding-bottom:0}
+ol.steps li::before{content:counter(s);position:absolute;left:-16px;top:-2px;width:30px;height:30px;border-radius:50%;background:var(--surface);border:2px solid var(--line-strong);display:grid;place-items:center;font:700 14px var(--mono);color:var(--ink)}
+ol.steps li.feature::before{border-color:var(--fold);color:var(--fold)}
+ol.steps h4{margin-bottom:3px}
+ol.steps p{color:var(--ink-2);font-size:15.5px}
+ol.steps .tag{font:600 11px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-left:6px}
+
+/* lists */
+ul.ticks{list-style:none;padding:0;margin:0;display:grid;gap:9px}
+ul.ticks li{position:relative;padding-left:26px;color:var(--ink-2)}
+ul.ticks li::before{content:"";position:absolute;left:2px;top:.55em;width:12px;height:7px;border-left:2px solid var(--ok);border-bottom:2px solid var(--ok);transform:rotate(-45deg) translateY(-3px)}
+ul.cross li::before{width:12px;height:2px;border:0;background:var(--fold);transform:rotate(45deg);top:.8em;box-shadow:none}
+ul.cross li::after{content:"";position:absolute;left:2px;top:.8em;width:12px;height:2px;background:var(--fold);transform:rotate(-45deg)}
+
+/* callouts */
+.note{border:1px solid var(--line);border-left:3px solid var(--accent);background:var(--surface);border-radius:10px;padding:12px 16px;color:var(--ink-2);font-size:15.5px}
+.note.warn{border-left-color:var(--warn);background:var(--warn-soft)}
+.note.fold{border-left-color:var(--fold);background:var(--fold-soft)}
+.note b{color:var(--ink)}
+.verify{display:inline-block;font:700 10.5px var(--mono);letter-spacing:.08em;color:var(--warn);background:var(--warn-soft);border:1px solid color-mix(in srgb,var(--warn) 40%,transparent);border-radius:5px;padding:1px 6px;vertical-align:2px}
+
+/* code */
+.code{position:relative;background:var(--code-bg);border-radius:var(--radius);border:1px solid var(--code-line);min-width:0;overflow:hidden}
+.code pre code{background:none;border:0;padding:0;font-size:inherit;overflow-wrap:normal;border-radius:0}
+.code pre{margin:0;padding:16px 18px;overflow-x:auto;font:400 13.5px/1.6 var(--mono);color:var(--code-fg);tab-size:4}
+.code .cap{display:flex;align-items:center;gap:8px;padding:8px 10px 8px 16px;border-bottom:1px solid var(--code-line);font:500 12px var(--mono);color:var(--code-dim)}
+.code .cap .sp{flex:1}
+.code .cpy{border:1px solid var(--code-line);background:transparent;color:var(--code-fg);font:600 12px var(--body);border-radius:7px;padding:4px 10px;cursor:pointer}
+.code .cpy:hover{background:var(--code-line)}
+.tok-k{color:var(--code-kw)} .tok-t{color:var(--code-ty)} .tok-s{color:var(--code-str)} .tok-c{color:var(--code-dim);font-style:italic} .tok-n{color:var(--code-num)} .tok-a{color:var(--code-fn)}
+.tabs{display:flex;gap:2px}
+.tabs button{border:0;background:transparent;color:var(--code-dim);font:600 12.5px var(--mono);padding:5px 10px;border-radius:7px;cursor:pointer}
+.tabs button[aria-selected="true"]{background:var(--code-line);color:var(--code-fg)}
+.tabpanel[hidden]{display:none}
+
+/* api entries */
+.api{border:1px solid var(--line);border-radius:16px;background:var(--surface);overflow:hidden}
+.api + .api{margin-top:6px}
+.api-head{padding:18px 20px 14px;display:grid;gap:8px;border-bottom:1px solid var(--line)}
+.api-head h3 code{font-size:.82em;background:none;border:0;padding:0;font-weight:600}
+.api-body{padding:18px 20px 20px;display:grid;gap:14px}
+.api-body p{color:var(--ink-2);max-width:68ch}
+.badges{display:flex;flex-wrap:wrap;gap:6px}
+.badge{font:600 11.5px var(--mono);border-radius:6px;padding:2px 8px;border:1px solid var(--line);color:var(--ink-2);background:var(--sunk)}
+.badge.ios{color:var(--ok);background:var(--ok-soft);border-color:color-mix(in srgb,var(--ok) 35%,transparent)}
+.badge.fw{color:var(--accent);background:var(--accent-soft);border-color:color-mix(in srgb,var(--accent) 35%,transparent)}
+dl.params{margin:0;display:grid;grid-template-columns:minmax(120px,max-content) minmax(0,1fr);gap:8px 18px;font-size:15px}
+dl.params dt{font-family:var(--mono);font-size:13.5px;color:var(--ink);padding-top:2px}
+dl.params dd{margin:0;color:var(--ink-2)}
+@media (max-width:560px){dl.params{grid-template-columns:minmax(0,1fr)}dl.params dd{margin-bottom:6px}}
+
+footer.site{border-top:1px solid var(--line);margin-top:72px;padding-top:24px;color:var(--muted);font-size:14px;max-width:860px;display:grid;gap:6px}
+
+@media (prefers-reduced-motion: reduce){*{transition:none!important;scroll-behavior:auto!important}}
+@media (prefers-reduced-motion: no-preference){html{scroll-behavior:smooth}}
+
+</style>
+</head>
+<body>
+<header class="topbar">
+  <button class="iconbtn menubtn" id="menubtn" type="button" aria-label="Open navigation" aria-expanded="false" aria-controls="rail">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+  </button>
+  <a class="brand" href="#top">
+    <svg width="26" height="26" viewBox="0 0 32 32" aria-hidden="true"><rect x="3" y="5" width="12" height="22" rx="3" fill="none" stroke="currentColor" stroke-width="2.2"/><rect x="17" y="5" width="12" height="22" rx="3" fill="none" stroke="currentColor" stroke-width="2.2" transform="skewY(-8) translate(0 2.6)"/><line x1="16" y1="4" x2="16" y2="28" stroke="var(--fold)" stroke-width="2.2" stroke-linecap="round"/></svg>
+    <span>Duo Porting<span class="full"> Guide</span></span>
+  </a>
+  <span class="spacer"></span>
+  <nav class="toplinks" aria-label="Site">
+    <button class="iconbtn" id="themebtn" type="button" aria-label="Switch colour theme">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 0 0 16z" fill="currentColor"/></svg>
+    </button>
+    <a href="https://github.com/KushagraGitter/iphone-duo-porting-skill">
+      <svg width="17" height="17" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+      <span class="gh-label">GitHub</span>
+    </a>
+  </nav>
+</header>
+<div class="scrim" id="scrim"></div>
+<div class="shell" id="top">
+<nav class="rail" id="rail" aria-label="Documentation">
+  <h5>Start</h5>
+  <a href="#install">Install the skill</a>
+  <a href="#device">What changes on Duo</a>
+  <a href="#workflow">Porting in seven steps</a>
+  <h5>Guides</h5>
+  <a href="#audit">Audit your code</a>
+  <a href="#resizing">Fix resizing</a>
+  <a href="#bars">Side toolbars</a>
+  <h5>API reference</h5>
+  <a href="#api-hinge">Hinge</a>
+  <a href="#api-arrangement">Arrangement views</a>
+  <a href="#api-regions">Reserved regions</a>
+  <a href="#api-bars">Vertical bar APIs</a>
+  <a href="#api-camera">Camera direction</a>
+  <a href="#api-accessory">Scene accessories</a>
+  <h5>Examples</h5>
+  <a href="#ex-scrub">Fold to scrub</a>
+  <a href="#ex-compat">Older iOS wrapper</a>
+  <a href="#ex-split">Split at the fold</a>
+  <a href="#ex-mirror">Selfie mirroring</a>
+  <h5>Ship</h5>
+  <a href="#testing">Testing</a>
+  <a href="#shipping">App Store</a>
+  <a href="#avoid">Patterns to avoid</a>
+  <a href="#sources">Sources</a>
+</nav>
+<main id="main">
+
+<div class="hero">
+  <div class="copy">
+    <span class="eyebrow">iOS 27.1 · Xcode 27.1 · SwiftUI &amp; UIKit</span>
+    <h1>Build for the <em>fold</em>.</h1>
+    <p class="lead">A field guide to porting iOS apps to iPhone Duo: the hinge, the fold, side toolbars and the two front cameras. Each API comes with real code. An agent skill does the audit and the fixes for you.</p>
+    <div class="install" role="group" aria-label="Install command">
+      <code id="cmd-main"><span class="p">$ </span>npx github:KushagraGitter/iphone-duo-porting-skill</code>
+      <button class="copybtn" type="button" data-copy="npx github:KushagraGitter/iphone-duo-porting-skill">Copy</button>
+    </div>
+    <div class="ctas">
+      <a class="btn primary" href="#workflow">Start porting</a>
+      <a class="btn" href="#api-hinge">API reference</a>
+    </div>
+    <div class="meta">
+      <span><b>6</b> API families</span>
+      <span><b>14</b> copy-ready examples</span>
+      <span>From Apple's docs and Tech Talks</span>
+    </div>
+  </div>
+
+  <figure class="demo" aria-label="Interactive hinge demo" style="margin:0">
+    <div class="demo-stage" id="stage">
+      <div class="dev" id="dev">
+        <div class="half l" id="hl"><div class="face scr"><div class="ui"><i class="w"></i><div class="blk"></div></div></div><div class="face bk"></div></div>
+        <div class="half r" id="hr"><div class="face scr"><div class="ui"><i class="s"></i><div class="blk"></div></div></div><div class="face bk"></div></div>
+        <div class="foldline" id="foldline"></div>
+      </div>
+    </div>
+    <div class="demo-read">
+      <div class="readout"><div class="k">angle.degrees</div><div class="v" id="r-deg">120</div></div>
+      <div class="readout"><div class="k">status</div><div class="v" id="r-status">.partiallyOpen</div></div>
+      <div class="readout"><div class="k">.division</div><div class="v fold" id="r-div">active</div></div>
+    </div>
+    <div class="demo-ctl">
+      <label for="angle">Fold angle</label>
+      <input id="angle" type="range" min="0" max="180" value="120" aria-describedby="demo-note">
+    </div>
+    <figcaption class="demo-note" id="demo-note">Drag to fold. The readouts show what your code would receive. The thresholds between statuses here are illustrative, because Apple doesn't publish them.</figcaption>
+  </figure>
+</div>
+
+<section class="doc" id="install">
+  <div class="sechead"><span class="eyebrow">Start</span><h2>Install the skill</h2></div>
+  <p>The skill teaches a coding agent the whole porting workflow and the exact iPhone Duo APIs. Install it once, then ask your agent to port the app. You need Node.js 16 or newer.</p>
+  <div class="code"><div class="cap"><span>Terminal</span><span class="sp"></span><button class="cpy" type="button">Copy</button></div><pre><code class="sh"># Every project (installs to ~/.claude/skills)
+npx github:KushagraGitter/iphone-duo-porting-skill
+
+# This project only (./.claude/skills, commit it to share with your team)
+npx github:KushagraGitter/iphone-duo-porting-skill --project
+
+# Another agent's skills folder
+npx github:KushagraGitter/iphone-duo-porting-skill --dir ~/.codex/skills
+
+# Remove it
+npx github:KushagraGitter/iphone-duo-porting-skill --uninstall</code></pre></div>
+  <p>Then ask your agent something like this:</p>
+  <div class="grid3">
+    <div class="card"><span class="eyebrow">Port</span><p>"Port this app to iPhone Duo and list everything you changed."</p></div>
+    <div class="card"><span class="eyebrow">Feature</span><p>"Add a fold-to-scrub control to the video player using the hinge."</p></div>
+    <div class="card"><span class="eyebrow">Review</span><p>"Audit this screen for iPhone Duo problems. Don't change anything yet."</p></div>
+  </div>
+  <p>The repo also follows the standard <code>skills/&lt;name&gt;/SKILL.md</code> layout, so <code>npx skills add KushagraGitter/iphone-duo-porting-skill</code> works too.</p>
+</section>
+
+<section class="doc" id="device">
+  <div class="sechead"><span class="eyebrow">Start</span><h2>What changes on Duo</h2></div>
+  <p>iPhone Duo is still an iPhone, so iOS patterns still apply. What's new is that your app can appear at many more sizes, with toolbars that move to the side and a fold through the middle of the large display.</p>
+  <div class="grid2">
+    <div class="card"><span class="eyebrow">Outer display</span><h4>Compact width</h4><p>Behaves like other iPhones. Portrait is compact width and regular height, and landscape is compact in both. Toolbars and tab bars sit on the side. The front camera is in the corner and always visible.</p></div>
+    <div class="card"><span class="eyebrow">Inner display</span><h4>Regular width and height</h4><p>Room for sidebars and two panes. Supported orientations are ignored for layout, so the app scales here, including in Split View. The camera is under the display and visible only while in use.</p></div>
+    <div class="card"><span class="eyebrow">Hinge</span><h4>Six poses</h4><p>Closed, folded like a book, folded like a laptop, tent, and flat (wide or tall). When partially open, the fold divides the inner display in two.</p></div>
+    <div class="card"><span class="eyebrow">Transitions</span><h4>Resize, not reconnect</h4><p>Opening or closing the phone is a size and trait change. State, keyboard, scroll position, video and camera sessions all survive.</p></div>
+  </div>
+  <h3 style="margin-top:10px">How your build behaves</h3>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Built with</th><th>On iPhone Duo</th></tr></thead>
+    <tbody>
+      <tr><td>iOS 26 SDK or earlier</td><td>Compatibility mode. Centred with empty space when open, and squeezed left of the status bar and camera when closed.</td></tr>
+      <tr><td>iOS 27 SDK</td><td>Fills most of the inner display but still avoids the status bar edge.</td></tr>
+      <tr><td><b>iOS 27.1 SDK</b></td><td>Full edge to edge, with toolbars and tab bars moved to a vertical bar on the side. Check that your content adapts to the side bar before shipping.</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section class="doc" id="workflow">
+  <div class="sechead"><span class="eyebrow">Start</span><h2>Porting in seven steps</h2></div>
+  <p>Steps 1 to 3 are the port itself, and every app needs them. Steps 4 to 7 adopt Duo features where they help your app. The skill follows this same order.</p>
+  <ol class="steps">
+    <li><h4>Audit the codebase <span class="tag">Port</span></h4><p>Find screen-based sizing, orientation and device checks, custom bars and camera direction assumptions. <a href="#audit">Search commands</a></p></li>
+    <li><h4>Fix resizing <span class="tag">Port</span></h4><p>Size from your view or scene, not the screen. Choose layouts by size class. Handle each safe-area edge on its own. <a href="#resizing">Patterns</a></p></li>
+    <li><h4>Move bars to the side <span class="tag">Port</span></h4><p>Use system bars, give every item an icon and a title, and set overflow priority. <a href="#bars">Guide</a></p></li>
+    <li class="feature"><h4>Lay out around the fold <span class="tag">Duo</span></h4><p>Two related panes go in an <code>ArrangementView</code>. <a href="#api-arrangement">API</a></p></li>
+    <li class="feature"><h4>Keep custom UI clear of reserved regions <span class="tag">Duo</span></h4><p>Move floating controls away from the fold and the cameras. <a href="#api-regions">API</a></p></li>
+    <li class="feature"><h4>Add hinge interactions <span class="tag">Duo</span></h4><p>Use the hinge angle for effects and gestures, never for layout. <a href="#api-hinge">API</a></p></li>
+    <li class="feature"><h4>Handle cameras and the outer display <span class="tag">Duo</span></h4><p>Pick the camera by the direction it faces, and show content to the person being filmed. <a href="#api-camera">API</a></p></li>
+  </ol>
+</section>
+
+<hr class="sep">
+
+<section class="doc" id="audit">
+  <div class="sechead"><span class="eyebrow">Guide</span><h2>Audit your code</h2></div>
+  <p>Run these from your repo root and read each hit in context. Not every hit is a bug, but each is worth a look.</p>
+  <div class="code"><div class="cap"><span>Terminal · ripgrep</span><span class="sp"></span><button class="cpy" type="button">Copy</button></div><pre><code class="sh"># Screen-based sizing
+rg -n 'UIScreen\.main|UIScreen\.screens|UIWindow\(frame:' --type swift
+# Orientation-driven layout
+rg -n 'UIDevice\.current\.orientation|statusBarOrientation|interfaceOrientation' --type swift
+# Idiom or hard-coded device sizes
+rg -n 'userInterfaceIdiom|== ?(667|736|812|844|852|874|896|926|932|956)\b|nativeBounds' --type swift
+# "Regular width means iPad"
+rg -n 'horizontalSizeClass *== *\.regular' --type swift
+# Custom bars that won't move to the side
+rg -n 'UIToolbar\(|UINavigationBar\(|UITabBar\(' --type swift
+# Symmetric inset assumptions
+rg -n 'safeAreaInsets\.(left|right|top|bottom) *\* *2' --type swift
+# Camera code that treats position as direction
+rg -n '\.position *== *\.front|isVideoMirrored' --type swift</code></pre></div>
+  <div class="note"><b>Also in Xcode 27.1:</b> Apple's App Resizability skill. Ask Xcode's assistant to "get my app ready for iPhone Duo", or run <code>xcrun agent skills export</code> to use it with another agent. It doesn't catch everything, so run this audit too.</div>
+</section>
+
+<section class="doc" id="resizing">
+  <div class="sechead"><span class="eyebrow">Guide</span><h2>Fix resizing</h2></div>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Replace</th><th>With</th></tr></thead>
+    <tbody>
+      <tr><td><code>UIScreen.main.bounds</code></td><td><code>view.bounds</code> or <code>window.bounds</code>. In SwiftUI, <code>GeometryReader</code> or <code>onGeometryChange</code>.</td></tr>
+      <tr><td><code>UIScreen.main.scale</code></td><td><code>traitCollection.displayScale</code> or <code>@Environment(\.displayScale)</code></td></tr>
+      <tr><td><code>UIWindow(frame:)</code></td><td><code>UIWindow(windowScene:)</code></td></tr>
+      <tr><td>A stored <code>UIScreen</code></td><td><code>view.window?.windowScene?.screen</code>, read when needed</td></tr>
+      <tr><td>Orientation checks</td><td>Compare <code>bounds.width &gt; bounds.height</code></td></tr>
+      <tr><td><code>userInterfaceIdiom == .pad</code></td><td>Size classes or available space</td></tr>
+      <tr><td>Size read once at launch</td><td><code>viewDidLayoutSubviews</code> and <code>viewWillTransition(to:with:)</code></td></tr>
+    </tbody>
+  </table></div>
+  <p>Safe areas on Duo are often asymmetric, because a side bar takes one edge only. Handle each side on its own:</p>
+  <div class="code"><div class="cap"><span>UIKit</span><span class="sp"></span><button class="cpy" type="button">Copy</button></div><pre><code class="swift">// Wrong: assumes opposite insets are equal
+let width = view.bounds.width - view.safeAreaInsets.left * 2
+
+// Right: handles each side independently
+let width = view.bounds.inset(by: view.safeAreaInsets).width</code></pre></div>
+  <p>Prefer system containers, because they adapt to the fold and cameras for you. <code>NavigationSplitView</code> and <code>UISplitViewController</code> collapse when closed and tile when open. Tabs can become a sidebar on the inner display:</p>
+  <div class="code" data-tabs><div class="cap"><div class="tabs" role="tablist"><button role="tab" type="button" data-lang="swiftui">SwiftUI</button><button role="tab" type="button" data-lang="uikit">UIKit</button></div><span class="sp"></span><button class="cpy" type="button">Copy</button></div>
+<pre class="tabpanel" data-lang="swiftui"><code class="swift">TabView { … }
+    .defaultTabBarPlacement(.sidebar)</code></pre>
+<pre class="tabpanel" data-lang="uikit" hidden><code class="swift">tabBarController.sidebar.preferredPlacement = .sidebar</code></pre></div>
+</section>
+
+<section class="doc" id="bars">
+  <div class="sechead"><span class="eyebrow">Guide</span><h2>Side toolbars</h2></div>
+  <p>On the outer display, and on the inner display in landscape, the navigation bar, toolbar and tab bar stack into one vertical bar on the side. Only bars owned by navigation containers move there. A standalone <code>UIToolbar</code> or custom SwiftUI bar stays where it is.</p>
+  <div class="grid2">
+    <div class="card"><span class="eyebrow">Order</span><p>Back or Close goes at the top, then prominent actions such as Done, then the rest in their usual groups.</p></div>
+    <div class="card"><span class="eyebrow">Icon and title</span><p>Give every item both. The side bar shows the icon and the overflow menu shows both. Title-only and custom-view items never move to the side.</p></div>
+    <div class="card"><span class="eyebrow">Overflow</span><p>Items overflow from the bottom up. Raise frequent actions and badged items with <code>visibilityPriority</code>. Use the system overflow menu, not your own ellipsis.</p></div>
+    <div class="card"><span class="eyebrow">Compression</span><p>Navigation apps keep the tab bar, which is the default. Task apps keep the toolbar with <code>.prefersToolbarItems</code>.</p></div>
+  </div>
+  <div class="code" data-tabs><div class="cap"><div class="tabs" role="tablist"><button role="tab" type="button" data-lang="swiftui">SwiftUI</button><button role="tab" type="button" data-lang="uikit">UIKit</button></div><span class="sp"></span><button class="cpy" type="button">Copy</button></div>
+<pre class="tabpanel" data-lang="swiftui"><code class="swift">NavigationStack {
+    EditorView()
+        .toolbar {
+            ToolbarItem(placement: .cancellationAction) {
+                Button("Close", systemImage: "xmark") { dismiss() }
+            }
+            ToolbarItem(placement: .topBarPinnedTrailing) {
+                Button("Done", systemImage: "checkmark") { save() }
+            }
+            ToolbarItem {
+                Button("Share", systemImage: "square.and.arrow.up") { share() }
+            }
+            .visibilityPriority(.high)
+            ToolbarOverflowMenu {
+                Button("Duplicate", systemImage: "plus.square.on.square") { duplicate() }
+                Button("Export PDF", systemImage: "doc") { export() }
+            }
+        }
+}</code></pre>
+<pre class="tabpanel" data-lang="uikit" hidden><code class="swift">navigationItem.leadingItemGroups = [UIBarButtonItemGroup(barButtonItems: [closeItem], representativeItem: nil)]
+navigationItem.pinnedTrailingGroup = UIBarButtonItemGroup(barButtonItems: [doneItem], representativeItem: nil)
+
+shareItem.visibilityPriority = .high
+navigationItem.additionalOverflowItems = UIDeferredMenuElement({ provider in
+    provider(self.persistentOverflowItems())
+})</code></pre></div>
+  <p>Sheets on the outer display get side bars. On the inner display, leading or centred sheets keep horizontal bars and trailing sheets get side bars. Set placement with <code>presentationPlacement(_:)</code> or <code>UISheetPresentationController.preferredPlacement</code>.</p>
+</section>
+
+<hr class="sep">
+
+<section class="doc" id="api-hinge">
+  <div class="sechead"><span class="eyebrow">API reference</span><h2>Hinge</h2></div>
+  <p>Read the hinge's status and its live angle. Use this for <b>interactions and effects only</b>. For layout, use arrangement views and reserved regions. The update rate and precision are system policy, so don't depend on either.</p>
+
+  <article class="api">
+    <div class="api-head">
+      <h3><code>onHingeChange(isEnabled:_:)</code></h3>
+      <div class="badges"><span class="badge fw">SwiftUI</span><span class="badge ios">iOS 27.1+</span><span class="badge">View modifier</span></div>
+    </div>
+    <div class="api-body">
+      <div class="code"><div class="cap"><span>Declaration</span><span class="sp"></span><button class="cpy" type="button">Copy</button></div><pre><code class="swift">nonisolated func onHingeChange(
+    isEnabled: Bool = true,
+    _ action: @escaping (DeviceHingeContext, DeviceHingeContext) -&gt; Void
+) -&gt; some View</code></pre></div>
+      <dl class="params">
+        <dt>isEnabled</dt><dd>Turns observation on or off. Bind it to a user setting such as "Fold to scrub".</dd>
+        <dt>action</dt><dd>Called with the old and new <code>DeviceHingeContext</code>.</dd>
+        <dt>context.hinge</dt><dd><code>DeviceHinge?</code>, which is <code>nil</code> on devices without a hinge.</dd>
+        <dt>hinge.angle</dt><dd>A SwiftUI <code>Angle</code>. Read <code>.degrees</code>.</dd>
+        <dt>hinge.status</dt><dd><code>.closed</code>, <code>.partiallyOpen</code> or <code>.fullyOpen</code></dd>
+      </dl>
+      <div class="code"><div class="cap"><span>Example · from Apple's docs</span><span class="sp"></span><button class="cpy" type="button">Copy</button></div><pre><code class="swift">@State private var hinge: DeviceHinge? = nil
+
+var body: some View {
+    VStack {
+        if let hinge {
+            AngleDisplayView(angle: hinge.angle)
+            StatusDisplayView(status: hinge.status)
+        } else {
+            ContentUnavailableView("Hinge Unavailable", systemImage: "rectangle.split.2x1")
+        }
+    }
+    .onHingeChange { _, newContext in
+        hinge = newContext.hinge
+    }
+}</code></pre></div>
+    </div>
+  </article>
+
+  <article class="api">
+    <div class="api-head">
+      <h3><code>UIHingeInteraction</code></h3>
+      <div class="badges"><span class="badge fw">UIKit</span><span class="badge ios">iOS 27.1+</span><span class="badge">UIInteraction</span></div>
+    </div>
+    <div class="api-body">
+      <p>Add it to a view. The handler runs once with the initial state, again on every hinge change, and when the view moves between hierarchies. The handler is stored, so capture <code>self</code> weakly.</p>
+      <dl class="params">
+        <dt>init(updateHandler:)</dt><dd><code>(UIHingeInteraction, UIHingeInteraction.Update) -&gt; Void</code></dd>
+        <dt>isEnabled</dt><dd>Turns the interaction on or off.</dd>
+        <dt>update.hinge</dt><dd><code>nil</code> when the view isn't in a hierarchy that provides hinge updates.</dd>
+        <dt>hinge.angle</dt><dd>A <code>CGFloat</code>, reported to be in radians <span class="verify">VERIFY</span></dd>
+        <dt>hinge.status</dt><dd>As in SwiftUI. A <code>.unknown</code> case is also reported <span class="verify">VERIFY</span></dd>
+      </dl>
+      <div class="code"><div class="cap"><span>Example</span><span class="sp"></span><button class="cpy" type="button">Copy</button></div><pre><code class="swift">override func viewDidLoad() {
+    super.viewDidLoad()
+
+    let interaction = UIHingeInteraction { [weak self] _, update in
+        guard let self else { return }
+        // nil means this view left a hierarchy that provides hinge updates
+        guard let hinge = update.hinge else {
+            handleHingeUnavailable()
+            return
+        }
+        updateAngleDisplay(with: hinge.angle)
+        updateStatusDisplay(with: hinge.status)
+    }
+    view.addInteraction(interaction)
+}</code></pre></div>
+      <div class="note fold"><b>No single "pose" value.</b> To infer a pose, combine the hinge status, the angle, the size class and <code>toolbarVerticalEdge</code>. For device attitude relative to one display, set <code>CMMotionManager.deviceMotionBody</code> to a view that conforms to <code>CMBodyIdentifiable</code>.</div>
+    </div>
+  </article>
+</section>
+
+<section class="doc" id="api-arrangement">
+  <div class="sechead"><span class="eyebrow">API reference</span><h2>Arrangement views</h2></div>
+  <p>A container for a primary and a secondary view that rearranges itself by size class, orientation and the fold. If a screen already looks like an <code>HStack</code> or <code>VStack</code>, use <b>split</b>. If it looks like a <code>ZStack</code>, use <b>overlay</b>.</p>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Style</th><th>Flat (closed or fully open)</th><th>Folded</th><th>Use for</th></tr></thead>
+    <tbody>
+      <tr><td><code>.split</code> (default)</td><td>Side by side when wide, primary leading. Stacked when tall, primary on top. A closed phone in landscape shows only the primary.</td><td>Each pane on its own side of the fold</td><td>Main and detail: player with transcript, list with editor</td></tr>
+      <tr><td><code>.overlay</code></td><td>Primary layered above secondary</td><td>Secondary leading or top, primary trailing or bottom</td><td>Foreground over background: controls over video</td></tr>
+    </tbody>
+  </table></div>
+
+  <article class="api">
+    <div class="api-head">
+      <h3><code>ArrangementView</code> · <code>UIArrangementViewController</code></h3>
+      <div class="badges"><span class="badge fw">SwiftUI</span><span class="badge fw">UIKit</span><span class="badge ios">iOS 27.1+</span><span class="badge">Also iPadOS, Mac Catalyst, visionOS</span></div>
+    </div>
+    <div class="api-body">
+      <div class="code" data-tabs><div class="cap"><div class="tabs" role="tablist"><button role="tab" type="button" data-lang="swiftui">SwiftUI</button><button role="tab" type="button" data-lang="uikit">UIKit</button></div><span class="sp"></span><button class="cpy" type="button">Copy</button></div>
+<pre class="tabpanel" data-lang="swiftui"><code class="swift">NavigationStack {                     // navigation goes outside
+    ArrangementView {
+        PlayerView()
+    } secondary: {
+        UpNextView()
+    }
+    .arrangementViewStyle(.split.axes(.horizontal))   // split only when wide
+}
+
+// Overlay: collapse the primary while it floats over the secondary
+struct UpNextView: View {
+    @Environment(\.overlayArrangementZIndex) private var zIndex: Int
+    var body: some View {
+        UpNextList(minimization: zIndex &gt; 0 ? .collapsed : .expanded)
+    }
+}</code></pre>
+<pre class="tabpanel" data-lang="uikit" hidden><code class="swift">let arrangementVC = UIArrangementViewController()
+let nav = UINavigationController(rootViewController: arrangementVC)
+
+arrangementVC.setViewController(PlayerViewController(), for: .primary)
+arrangementVC.setViewController(UpNextViewController(), for: .secondary)
+arrangementVC.updateArrangement(.split.axes(.horizontal))   // or .overlay
+
+// Overlay state
+let zIndex = arrangementVC.state(for: .primary)?.zIndex ?? 0
+model.minimization = zIndex &gt; 0 ? .collapsed : .expanded</code></pre></div>
+      <dl class="params">
+        <dt>.split / .overlay</dt><dd>The arrangement style. Add <code>.axes(.horizontal)</code> or <code>.axes(.vertical)</code> to limit when it splits.</dd>
+        <dt>overlayArrangementZIndex</dt><dd>A SwiftUI environment value. Greater than 0 means the view is layered on top.</dd>
+        <dt>updateArrangement(_:animated:)</dt><dd>Changes the arrangement in UIKit.</dd>
+        <dt>Custom sizing</dt><dd>See <code>SplitArrangementViewStyle</code> and <code>UISplitArrangement</code>. Third parties name <code>splitArrangementLayoutRatio(_:)</code>. <span class="verify">VERIFY</span></dd>
+      </dl>
+      <div class="note warn"><b>Never nest it wrongly.</b> Don't put an arrangement inside a <code>List</code>, <code>ScrollView</code>, grid or <code>NavigationSplitView</code>, and don't put a <code>TabView</code> or <code>NavigationSplitView</code> inside one. Feeds and articles shouldn't split.</div>
+    </div>
+  </article>
+</section>
+
+<section class="doc" id="api-regions">
+  <div class="sechead"><span class="eyebrow">API reference</span><h2>Reserved regions</h2></div>
+  <p>Hardware areas your content should avoid. System containers already handle them. Query them for custom overlays, floating controls, custom bars and explicit-frame layouts. Touches over a reserved region may not register.</p>
+  <div class="grid2">
+    <div class="card"><span class="eyebrow" style="color:var(--fold)">.division</span><h4>The fold</h4><p>Active when the phone is partially open. When fully open it's inactive with zero width. Keep each view entirely on one side.</p></div>
+    <div class="card"><span class="eyebrow" style="color:var(--accent)">.occlusion</span><h4>Cameras and window controls</h4><p>The outer camera is always active and grows into the Dynamic Island. The inner camera is active only while in use.</p></div>
+  </div>
+  <article class="api">
+    <div class="api-head">
+      <h3><code>reservedRegions(kind:…)</code> · <code>ReservedRegion</code></h3>
+      <div class="badges"><span class="badge fw">SwiftUI</span><span class="badge fw">UIKit</span><span class="badge ios">iOS 27.1+</span></div>
+    </div>
+    <div class="api-body">
+      <div class="code" data-tabs><div class="cap"><div class="tabs" role="tablist"><button role="tab" type="button" data-lang="swiftui">SwiftUI</button><button role="tab" type="button" data-lang="uikit">UIKit</button></div><span class="sp"></span><button class="cpy" type="button">Copy</button></div>
+<pre class="tabpanel" data-lang="swiftui"><code class="swift">// On GeometryProxy
+func reservedRegions(
+    kind: ReservedRegion.Kind,
+    options: ReservedRegion.QueryOptions = [],
+    layoutDirectionBehavior: LayoutDirectionBehavior = …
+) -&gt; [ReservedRegion]
+
+GeometryReader { proxy in
+    let fold = proxy.reservedRegions(kind: .division)
+    let cams = proxy.reservedRegions(kind: .occlusion, options: .includeInactive)
+}</code></pre>
+<pre class="tabpanel" data-lang="uikit" hidden><code class="swift">@MainActor func reservedRegions(
+    kind: UIView.ReservedRegion.Kind,
+    options: UIView.ReservedRegion.QueryOptions = []
+) -&gt; [UIView.ReservedRegion]
+
+let frames = view.reservedRegions(kind: .division).map(\.frame)</code></pre></div>
+      <dl class="params">
+        <dt>frame</dt><dd>A <code>CGRect</code> in the view's own coordinates, with margins already included. It can extend past the view's bounds.</dd>
+        <dt>margins</dt><dd>Extra clearance around the hardware area, for interactive content.</dd>
+        <dt>isActive</dt><dd>Whether the region affects the view right now.</dd>
+        <dt>id / kind</dt><dd>Track a region across queries. <code>ReservedRegion</code> is <code>Identifiable</code>.</dd>
+        <dt>.includeInactive</dt><dd>Also returns inactive regions, so you can reserve space ahead of time and avoid layout jumps.</dd>
+        <dt>.fixed</dt><dd>Returns unmirrored frames. By default, frames are mirrored for right-to-left layouts.</dd>
+      </dl>
+      <div class="code"><div class="cap"><span>Push a custom top bar below the camera</span><span class="sp"></span><button class="cpy" type="button">Copy</button></div><pre><code class="swift">GeometryReader { proxy in
+    let bar = CGRect(x: 0, y: 0, width: proxy.size.width, height: 60)
+    let topInset = proxy.reservedRegions(kind: .occlusion)
+        .filter { $0.frame.intersects(bar) }
+        .map(\.frame.maxY)
+        .max() ?? 0
+
+    ControlBar()
+        .frame(height: 60)
+        .padding(.top, topInset)
+        .frame(maxHeight: .infinity, alignment: .top)
+}</code></pre></div>
+    </div>
+  </article>
+</section>
+
+<section class="doc" id="api-bars">
+  <div class="sechead"><span class="eyebrow">API reference</span><h2>Vertical bar APIs</h2></div>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Purpose</th><th>SwiftUI</th><th>UIKit</th></tr></thead>
+    <tbody>
+      <tr><td>Which side the bar is on (nil when bars are horizontal)</td><td><code>@Environment(\.toolbarVerticalEdge)</code></td><td><code>traitCollection.verticalBarEdge</code></td></tr>
+      <tr><td>Allow or forbid an item in the side bar</td><td><code>.axisBehavior(.verticalPreferred)</code><br><code>.axisBehavior(.horizontalOnly)</code></td><td><code>item.axisBehavior</code></td></tr>
+      <tr><td>Overflow order</td><td><code>.visibilityPriority(.high)</code></td><td><code>item.visibilityPriority</code></td></tr>
+      <tr><td>Items that always go in overflow</td><td><code>ToolbarOverflowMenu { }</code></td><td><code>navigationItem.additionalOverflowItems</code></td></tr>
+      <tr><td>Keep toolbar or tab bar when space is short</td><td><code>.toolbarVerticalCompressionBehavior(.prefersToolbarItems)</code></td><td><code>verticalBarCompressionBehavior = .prefersBarItems</code> <span class="verify">VERIFY</span></td></tr>
+      <tr><td>Opt out (calculator-style screens, single-button sheets)</td><td><code>.toolbarVerticalBehavior(.disabled)</code></td><td><code>override var preferredVerticalBarBehavior</code></td></tr>
+      <tr><td>Hero image under the bar</td><td><code>.backgroundExtensionEffect()</code></td><td><code>UIBackgroundExtensionView</code></td></tr>
+      <tr><td>Sheet side</td><td><code>.presentationPlacement(_:)</code></td><td><code>preferredPlacement</code></td></tr>
+      <tr><td>Badges</td><td><code>.badge(7)</code></td><td><code>item.badge = .count(7)</code></td></tr>
+    </tbody>
+  </table></div>
+  <div class="code"><div class="cap"><span>Align a floating palette with the side bar</span><span class="sp"></span><button class="cpy" type="button">Copy</button></div><pre><code class="swift">struct ContentView: View {
+    @Environment(\.toolbarVerticalEdge) private var barEdge
+
+    var body: some View {
+        Canvas()
+            .overlay(alignment: barEdge == .trailing ? .leading : .trailing) {
+                FloatingToolPalette()     // sits on the side away from the bar
+            }
+    }
+}</code></pre></div>
+</section>
+
+<section class="doc" id="api-camera">
+  <div class="sechead"><span class="eyebrow">API reference</span><h2>Camera direction</h2></div>
+  <p>Duo has a front camera above each display. When the phone opens, closes or turns around, the camera that faces the user changes. <code>AVCaptureDevice.position</code> still reports where a camera sits, not which way it points.</p>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Device type</th><th>What it is</th><th>Limits</th></tr></thead>
+    <tbody>
+      <tr><td>Front discovery with <code>.builtInWideAngleCamera</code> / <code>.builtInUltraWideCamera</code></td><td>The virtual front camera. It follows your app between displays automatically, and existing apps keep working.</td><td>1080p, 60 fps, no depth</td></tr>
+      <tr><td><code>.builtInOuterUltraWideCamera</code></td><td>The physical outer front camera</td><td>Up to 4K, 120 fps</td></tr>
+      <tr><td><code>.builtInInnerUltraWideCamera</code></td><td>The under-display inner camera</td><td>1080p, up to 60 fps</td></tr>
+    </tbody>
+  </table></div>
+  <article class="api">
+    <div class="api-head">
+      <h3><code>AVCaptureDeviceDirectionCoordinator</code></h3>
+      <div class="badges"><span class="badge fw">AVKit</span><span class="badge ios">iOS 27.1+</span><span class="badge">@MainActor</span></div>
+    </div>
+    <div class="api-body">
+      <p>Give it your preview view, every built-in camera you capture from (rear ones too, but not the virtual front camera) and a change handler. The handler receives an <code>AVCaptureDeviceDirectionMap</code> with <code>forwardFacingDeviceDescriptors</code> and <code>backwardFacingDeviceDescriptors</code>. Keep a strong reference, and create one coordinator per preview view.</p>
+      <div class="code"><div class="cap"><span>Switch to whichever camera faces the user</span><span class="sp"></span><button class="cpy" type="button">Copy</button></div><pre><code class="swift">@MainActor
+final class DirectionObserver {
+    private let captureService: CaptureService      // your actor
+    private var coordinator: AVCaptureDeviceDirectionCoordinator?
+    private var active: AVCaptureDeviceDescriptor?
+
+    init(captureService: CaptureService) { self.captureService = captureService }
+
+    func startObserving(previewView: UIView) {
+        coordinator = AVCaptureDeviceDirectionCoordinator(
+            view: previewView,
+            deviceTypes: [.builtInOuterUltraWideCamera,
+                          .builtInInnerUltraWideCamera,
+                          .builtInDualWideCamera]
+        ) { [weak self] map in self?.directionsChanged(map) }
+    }
+
+    private func directionsChanged(_ map: AVCaptureDeviceDirectionMap) {
+        let forward = map.forwardFacingDeviceDescriptors
+        if let active, forward.contains(active) { return }
+        guard let next = forward.first else { return }
+        active = next
+        // Never call AVFoundation here; hand the Sendable descriptor to your actor.
+        Task { try await captureService.selectCamera(with: next) }
+    }
+}</code></pre></div>
+      <div class="code"><div class="cap"><span>In your capture actor</span><span class="sp"></span><button class="cpy" type="button">Copy</button></div><pre><code class="swift">func selectCamera(with descriptor: AVCaptureDeviceDescriptor) throws {
+    guard let device = AVCaptureDevice(uniqueID: descriptor.uniqueID) else { return }
+    let input = try AVCaptureDeviceInput(device: device)
+
+    session.beginConfiguration()
+    defer { session.commitConfiguration() }
+    if let activeInput { session.removeInput(activeInput) }
+    guard session.canAddInput(input) else {
+        if let activeInput { session.addInput(activeInput) }
+        return
+    }
+    session.addInput(input)
+    activeInput = input
+}</code></pre></div>
+    </div>
+  </article>
+</section>
+
+<section class="doc" id="api-accessory">
+  <div class="sechead"><span class="eyebrow">API reference</span><h2>Scene accessories</h2></div>
+  <p>The only way to put content on the outer display while your app runs on the inner one. <code>CameraCaptureAccessory</code> shows when the phone is open, your app is in the foreground and full screen on the inner display, and a capture session is running. A typical use is a teleprompter for the person being filmed. The system can withdraw it at any time, so it must never be the only way to do something.</p>
+  <article class="api">
+    <div class="api-head">
+      <h3><code>CameraCaptureAccessory</code> · <code>UISceneAccessory.cameraCapture</code></h3>
+      <div class="badges"><span class="badge fw">SwiftUI</span><span class="badge fw">UIKit</span><span class="badge ios">iOS 27.1+</span></div>
+    </div>
+    <div class="api-body">
+      <div class="code" data-tabs><div class="cap"><div class="tabs" role="tablist"><button role="tab" type="button" data-lang="swiftui">SwiftUI</button><button role="tab" type="button" data-lang="uikit">UIKit</button></div><span class="sp"></span><button class="cpy" type="button">Copy</button></div>
+<pre class="tabpanel" data-lang="swiftui"><code class="swift">struct CameraRootView: View {
+    @State private var model = TeleprompterModel()
+
+    var body: some View {
+        CameraView(model: model)
+            .sceneAccessory {
+                CameraCaptureAccessory(isEnabled: $model.isEnabled) {
+                    TeleprompterView(model: model)
+                }
+                .onAvailabilityChange { model.isAvailable = $0 }
+            }
+            .toolbar {
+                TeleprompterToggle(isEnabled: $model.isEnabled)
+                    .disabled(!model.isAvailable)
+            }
+    }
+}</code></pre>
+<pre class="tabpanel" data-lang="uikit" hidden><code class="swift">class CameraViewController: UIViewController {
+    private let script = ScriptModel()
+    private var registration: UISceneAccessoryRegistration?   // keep it strong
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        let configuration = UISceneConfiguration()
+        configuration.delegateClass = ScriptSceneDelegate.self
+        let accessory = UISceneAccessory.cameraCapture(sceneConfiguration: configuration,
+                                                       userInfo: script)
+        registration = registerSceneAccessory(accessory)
+    }
+
+    override func updateProperties() {
+        super.updateProperties()
+        scriptControls.isHidden = !(registration?.isAvailable ?? false)
+    }
+}
+
+// In ScriptSceneDelegate.scene(_:willConnectTo:options:)
+let script = connectionOptions.sceneAccessoryUserInfo as? ScriptModel</code></pre></div>
+      <dl class="params">
+        <dt>isEnabled</dt><dd>Your user's on/off choice. Content is on by default.</dd>
+        <dt>onAvailabilityChange / isAvailable</dt><dd>Whether the system can show the content. Only the system sets this.</dd>
+        <dt>unregisterSceneAccessory(_:)</dt><dd>Call it when you stop offering the content, rather than just hiding it.</dd>
+        <dt>.windowCameraCaptureAccessory</dt><dd>The scene session role, which identifies the accessory scene in a shared delegate.</dd>
+      </dl>
+    </div>
+  </article>
+</section>
+
+<hr class="sep">
+
+<section class="doc" id="ex-scrub">
+  <div class="sechead"><span class="eyebrow">Example</span><h2>Fold to scrub</h2></div>
+  <p>Scrub through a timelapse by folding the phone. Two habits make hinge gestures feel right. First, respond only while the phone is <code>.partiallyOpen</code>. Second, work from the change in angle since the gesture started, not the absolute angle, because Apple doesn't document the reported range. Here every 2° moves one frame.</p>
+  <div class="code"><div class="cap"><span>SwiftUI</span><span class="sp"></span><button class="cpy" type="button">Copy</button></div><pre><code class="swift">struct TimelapseViewer: View {
+    let frameNames: [String]
+    @State private var frameIndex = 0
+    @State private var anchor: (angle: Angle, frame: Int)?
+    @State private var foldToScrub = true
+
+    var body: some View {
+        VStack {
+            Image(frameNames[frameIndex]).resizable().scaledToFit()
+            Slider(value: Binding(get: { Double(frameIndex) },
+                                  set: { frameIndex = Int($0.rounded()) }),
+                   in: 0...Double(max(frameNames.count - 1, 1)))   // non-hinge path
+            Toggle("Fold to scrub", isOn: $foldToScrub)
+        }
+        .onHingeChange(isEnabled: foldToScrub) { old, new in
+            guard let hinge = new.hinge, hinge.status == .partiallyOpen else {
+                anchor = nil
+                return
+            }
+            if old.hinge?.status != .partiallyOpen || anchor == nil {
+                anchor = (hinge.angle, frameIndex)
+            }
+            guard let anchor else { return }
+            let moved = hinge.angle.degrees - anchor.angle.degrees
+            let target = anchor.frame + Int((moved / 2).rounded())
+            frameIndex = min(max(target, 0), frameNames.count - 1)
+        }
+    }
+}</code></pre></div>
+  <ul class="ticks">
+    <li>Always provide a button or slider that does the same thing, for other iPhones, for accessibility, and for people who don't want to fold.</li>
+    <li>Smooth the motion with an animation or spring, and ignore changes under about 1°.</li>
+  </ul>
+</section>
+
+<section class="doc" id="ex-compat">
+  <div class="sechead"><span class="eyebrow">Example</span><h2>Older iOS wrapper</h2></div>
+  <p>If your deployment target is below iOS 27.1, the hinge types can't appear in your own signatures. Wrap them in a plain value so call sites stay clean on every OS.</p>
+  <div class="code"><div class="cap"><span>SwiftUI</span><span class="sp"></span><button class="cpy" type="button">Copy</button></div><pre><code class="swift">struct HingeReading: Equatable {
+    enum Status { case closed, partiallyOpen, fullyOpen, unknown }
+    var degrees: Double
+    var status: Status
+}
+
+extension View {
+    /// Calls `action` with the hinge reading, or nil without a hinge or before iOS 27.1.
+    @ViewBuilder
+    func onHingeReading(isEnabled: Bool = true,
+                        perform action: @escaping (HingeReading?) -&gt; Void) -&gt; some View {
+        if #available(iOS 27.1, *) {
+            self.onHingeChange(isEnabled: isEnabled) { _, new in
+                action(new.hinge.map { hinge in
+                    let status: HingeReading.Status
+                    switch hinge.status {
+                    case .closed: status = .closed
+                    case .partiallyOpen: status = .partiallyOpen
+                    case .fullyOpen: status = .fullyOpen
+                    default: status = .unknown
+                    }
+                    return HingeReading(degrees: hinge.angle.degrees, status: status)
+                })
+            }
+        } else {
+            self.onAppear { action(nil) }
+        }
+    }
+}</code></pre></div>
+</section>
+
+<section class="doc" id="ex-split">
+  <div class="sechead"><span class="eyebrow">Example</span><h2>Split custom content at the fold</h2></div>
+  <p>Use this when <code>ArrangementView</code> doesn't fit, such as a custom canvas or a game board. It works out which way the fold runs and leaves the fold itself empty. This example is adapted from Apple's <code>ReservedRegion</code> documentation.</p>
+  <div class="code"><div class="cap"><span>SwiftUI</span><span class="sp"></span><button class="cpy" type="button">Copy</button></div><pre><code class="swift">struct SplitContent: View {
+    var body: some View {
+        GeometryReader { proxy in
+            if let division = proxy.reservedRegions(kind: .division).first {
+                let f = division.frame
+                if f.height &gt; f.width {
+                    // Book fold: the fold runs vertically, so panes sit side by side
+                    HStack(spacing: 0) {
+                        FirstPane().frame(width: f.minX)
+                        Color.clear.frame(width: f.width)
+                        SecondPane().frame(width: proxy.size.width - f.maxX)
+                    }
+                } else {
+                    // Laptop fold: the fold runs horizontally, so panes stack
+                    VStack(spacing: 0) {
+                        FirstPane().frame(height: f.minY)
+                        Color.clear.frame(height: f.height)
+                        SecondPane().frame(height: proxy.size.height - f.maxY)
+                    }
+                }
+            } else {
+                FirstPane()
+            }
+        }
+    }
+}</code></pre></div>
+  <div class="note">In grids, prefer an even number of columns whenever a division exists. Query with <code>.includeInactive</code> to decide that before the user folds.</div>
+</section>
+
+<section class="doc" id="ex-mirror">
+  <div class="sechead"><span class="eyebrow">Example</span><h2>Selfie mirroring</h2></div>
+  <p>Base mirroring on the direction map, not on <code>position</code>. When a rear camera faces the user, mirror it. When a front camera faces away, don't. Turn off automatic mirroring first, or setting <code>isVideoMirrored</code> throws an exception.</p>
+  <div class="code"><div class="cap"><span>AVFoundation</span><span class="sp"></span><button class="cpy" type="button">Copy</button></div><pre><code class="swift">private func applyVideoMirroring(from map: AVCaptureDeviceDirectionMap) {
+    guard let connection = previewConnection, connection.isVideoMirroringSupported else { return }
+
+    let id = activeDevice.uniqueID
+    let facingForward  = map.forwardFacingDeviceDescriptors.contains { $0.uniqueID == id }
+    let facingBackward = map.backwardFacingDeviceDescriptors.contains { $0.uniqueID == id }
+    let isFrontCamera  = activeDevice.position == .front
+
+    // Take over only when where the camera sits and where it points disagree
+    let needsOverride = (facingForward &amp;&amp; !isFrontCamera) || (facingBackward &amp;&amp; isFrontCamera)
+    guard needsOverride else { return }
+
+    connection.automaticallyAdjustsVideoMirroring = false   // must come first
+    connection.isVideoMirrored = facingForward
+}</code></pre></div>
+  <p>Call it on every new map and again after swapping inputs, because a new input creates a new connection. Also create a new <code>AVCaptureDevice.RotationCoordinator</code> for each camera.</p>
+</section>
+
+<hr class="sep">
+
+<section class="doc" id="testing">
+  <div class="sechead"><span class="eyebrow">Ship</span><h2>Testing</h2></div>
+  <div class="grid3">
+    <div class="card"><span class="eyebrow">Xcode 27.1</span><h4>Device Hub</h4><p>Choose the iPhone Duo simulator and use its buttons to open, close, fold and rotate. In Split View, drag the app by the home indicator to each side.</p></div>
+    <div class="card"><span class="eyebrow">Fast loop</span><h4>Resizing</h4><p>The resizable iOS simulator, or iPhone Mirroring on macOS 27. Drag the window to extreme sizes in both directions.</p></div>
+    <div class="card"><span class="eyebrow">Hardware only</span><h4>Cameras</h4><p>The simulator has no camera. Test camera switching, mirroring and capture accessories on a real phone, along with how easy controls are to reach near the fold.</p></div>
+  </div>
+  <h3>Test matrix</h3>
+  <p>For each pose, check portrait and landscape, full screen and both sides of Split View. In each one, go deep into the app, open a sheet, type into a field, play video, then fold mid-task.</p>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Pose</th><th>What to look for</th></tr></thead>
+    <tbody>
+      <tr><td>Closed</td><td>Side toolbar order, overflow, camera corner, Dynamic Island</td></tr>
+      <tr><td>Book fold</td><td>Nothing tappable in the fold, panes balanced, sheets clear of the fold</td></tr>
+      <tr><td>Laptop fold</td><td>Content on top and controls below. Overlay arrangements separate.</td></tr>
+      <tr><td>Tent</td><td>Landscape on the outer display. Content readable at a distance.</td></tr>
+      <tr><td>Fully open</td><td>Sidebar and split layouts, regular size classes, inner camera occlusion</td></tr>
+    </tbody>
+  </table></div>
+  <div class="note">Also test the largest Dynamic Type sizes in every pose, and VoiceOver on any custom grid that spans the fold.</div>
+</section>
+
+<section class="doc" id="shipping">
+  <div class="sechead"><span class="eyebrow">Ship</span><h2>App Store</h2></div>
+  <ul class="ticks">
+    <li>Build with the iOS 27.1 SDK. From April 2027, uploads require the iOS 27 SDK or later.</li>
+    <li>Upload iPhone Duo screenshots in App Store Connect. That alone adds the "Made for iPhone Duo" badge to your product page.</li>
+    <li>Preview your assets in App Store Connect. When you nominate the app for featuring, say it supports all poses.</li>
+  </ul>
+</section>
+
+<section class="doc" id="avoid">
+  <div class="sechead"><span class="eyebrow">Ship</span><h2>Patterns to avoid</h2></div>
+  <ul class="ticks cross">
+    <li>A custom layout for each pose. Use compact width for the outer display and regular width for the inner one.</li>
+    <li>Choosing a layout from the hinge angle, or relying on its update rate or absolute values.</li>
+    <li>Text-only or custom-view toolbar items you expect to move to the side, or your own ellipsis menu.</li>
+    <li>Overriding where the side bar goes without a strong reason.</li>
+    <li>Content or controls sitting in the fold.</li>
+    <li>Treating a camera's <code>position</code> as the direction it faces.</li>
+    <li>Essential UI that exists only in a scene accessory.</li>
+    <li><code>UIScreen.main</code>, orientation checks and idiom checks for layout.</li>
+  </ul>
+</section>
+
+<section class="doc" id="sources">
+  <div class="sechead"><span class="eyebrow">Reference</span><h2>Sources</h2></div>
+  <p>Built from Apple's documentation, Human Interface Guidelines, Tech Talks and the answers Apple engineers gave in the iPhone Duo group labs. Items marked <span class="verify">VERIFY</span> are where sources disagree or rest on a third-party write-up. Check those against the Xcode 27.1 SDK.</p>
+  <div class="grid2">
+    <div class="card"><span class="eyebrow">Guides</span>
+      <p><a href="https://developer.apple.com/documentation/technologyoverviews/preparing-your-app-for-iphone-duo">Preparing your app for iPhone Duo</a><br>
+      <a href="https://developer.apple.com/design/human-interface-guidelines/designing-for-iphone-duo">HIG: Designing for iPhone Duo</a><br>
+      <a href="https://developer.apple.com/iphone-duo/prepare/">Three steps to make your app shine</a><br>
+      <a href="https://developer.apple.com/forums/thread/847644">iPhone Duo Group Lab Q&amp;A</a></p></div>
+    <div class="card"><span class="eyebrow">API reference</span>
+      <p><a href="https://developer.apple.com/documentation/swiftui/view/onhingechange(isenabled:_:)">onHingeChange(isEnabled:_:)</a> · <a href="https://developer.apple.com/documentation/uikit/uihingeinteraction">UIHingeInteraction</a><br>
+      <a href="https://developer.apple.com/documentation/swiftui/arrangementview">ArrangementView</a> · <a href="https://developer.apple.com/documentation/uikit/uiarrangementviewcontroller">UIArrangementViewController</a><br>
+      <a href="https://developer.apple.com/documentation/swiftui/reservedregion">ReservedRegion</a> · <a href="https://developer.apple.com/documentation/uikit/uiview/reservedregion">UIView.ReservedRegion</a></p></div>
+    <div class="card"><span class="eyebrow">Camera</span>
+      <p><a href="https://developer.apple.com/documentation/avkit/choosing-a-camera-by-the-direction-it-faces">Choosing a camera by the direction it faces</a><br>
+      <a href="https://developer.apple.com/documentation/avfoundation/registering-a-camera-capture-accessory-on-iphone-duo">Registering a camera capture accessory</a></p></div>
+    <div class="card"><span class="eyebrow">Tech Talks</span>
+      <p><a href="https://developer.apple.com/videos/play/tech-talks/111461/">Prepare</a> · <a href="https://developer.apple.com/videos/play/tech-talks/111462/">Raise the bar</a> · <a href="https://developer.apple.com/videos/play/tech-talks/111463/">Adaptive layouts</a><br>
+      <a href="https://developer.apple.com/videos/play/tech-talks/111464/">Displays and scenes</a> · <a href="https://developer.apple.com/videos/play/tech-talks/111465/">Camera</a> · <a href="https://developer.apple.com/videos/play/tech-talks/111466/">Design</a></p></div>
+  </div>
+</section>
+
+<footer class="site">
+  <p>An open guide and agent skill for iPhone Duo developers. Corrections are welcome as pull requests on <a href="https://github.com/KushagraGitter/iphone-duo-porting-skill">GitHub</a>.</p>
+  <p>Not affiliated with Apple. iPhone is a trademark of Apple Inc.</p>
+</footer>
+</main>
+</div>
+<script>
+(function(){
+  "use strict";
+  var root=document.documentElement;
+  /* theme */
+  try{var t=localStorage.getItem("duo-theme");if(t)root.setAttribute("data-theme",t)}catch(e){}
+  document.getElementById("themebtn").addEventListener("click",function(){
+    var cur=root.getAttribute("data-theme")||(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");
+    var next=cur==="dark"?"light":"dark";root.setAttribute("data-theme",next);
+    try{localStorage.setItem("duo-theme",next)}catch(e){}
+  });
+
+  /* mobile nav */
+  var body=document.body,menu=document.getElementById("menubtn");
+  function setNav(open){body.classList.toggle("nav-open",open);menu.setAttribute("aria-expanded",String(open))}
+  menu.addEventListener("click",function(){setNav(!body.classList.contains("nav-open"))});
+  document.getElementById("scrim").addEventListener("click",function(){setNav(false)});
+  document.querySelectorAll(".rail a").forEach(function(a){a.addEventListener("click",function(){setNav(false)})});
+  document.addEventListener("keydown",function(e){if(e.key==="Escape")setNav(false)});
+
+  /* swift highlighter */
+  var KW="func|var|let|if|else|guard|return|struct|class|enum|case|extension|import|private|final|override|init|self|Self|some|in|for|switch|default|try|await|async|throws|true|false|nil|static|nonisolated|weak|super|defer|where|protocol|actor";
+  var re=new RegExp("(\\/\\/[^\\n]*|\\/\\*[\\s\\S]*?\\*\\/)|(\"(?:[^\"\\\\]|\\\\.)*\")|(@[A-Za-z]+)|\\b("+KW+")\\b|\\b(\\d+(?:\\.\\d+)?)\\b|\\b([A-Z][A-Za-z0-9_]*)\\b|(#available)","g");
+  function esc(s){return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")}
+  function hlSwift(src){
+    var out="",last=0,m;re.lastIndex=0;
+    while((m=re.exec(src))){
+      out+=esc(src.slice(last,m.index));
+      var c=m[1]?"c":m[2]?"s":m[3]?"a":m[4]?"k":m[5]?"n":m[6]?"t":"k";
+      out+='<span class="tok-'+c+'">'+esc(m[0])+"</span>";last=re.lastIndex;
+    }
+    return out+esc(src.slice(last));
+  }
+  function hlSh(src){
+    return src.split("\n").map(function(l){
+      if(/^\s*#/.test(l))return '<span class="tok-c">'+esc(l)+"</span>";
+      return esc(l).replace(/^(npx|rg|git|mkdir|cp|xcrun)\b/,'<span class="tok-k">$1</span>').replace(/('[^']*')/g,'<span class="tok-s">$1</span>');
+    }).join("\n");
+  }
+  document.querySelectorAll("code.swift").forEach(function(el){el.innerHTML=hlSwift(el.textContent)});
+  document.querySelectorAll("code.sh").forEach(function(el){el.innerHTML=hlSh(el.textContent)});
+
+  /* tabs (remembers SwiftUI vs UIKit across the page) */
+  var pref="swiftui";try{pref=localStorage.getItem("duo-lang")||pref}catch(e){}
+  function applyLang(lang){
+    document.querySelectorAll(".code[data-tabs]").forEach(function(box){
+      box.querySelectorAll('[role="tab"]').forEach(function(b){b.setAttribute("aria-selected",String(b.dataset.lang===lang));b.tabIndex=b.dataset.lang===lang?0:-1});
+      box.querySelectorAll(".tabpanel").forEach(function(p){p.hidden=p.dataset.lang!==lang});
+    });
+  }
+  document.querySelectorAll('.code[data-tabs] [role="tab"]').forEach(function(b){
+    b.addEventListener("click",function(){
+      var y=b.getBoundingClientRect().top;applyLang(b.dataset.lang);
+      window.scrollBy(0,b.getBoundingClientRect().top-y);
+      try{localStorage.setItem("duo-lang",b.dataset.lang)}catch(e){}
+    });
+  });
+  applyLang(pref);
+
+  /* copy */
+  function copy(text,btn){
+    var done=function(){var o=btn.textContent;btn.textContent="Copied";setTimeout(function(){btn.textContent=o},1400)};
+    if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(text).then(done,function(){fallback(text);done()})}else{fallback(text);done()}
+  }
+  function fallback(text){var ta=document.createElement("textarea");ta.value=text;ta.style.position="fixed";ta.style.opacity="0";document.body.appendChild(ta);ta.select();try{document.execCommand("copy")}catch(e){}ta.remove()}
+  document.querySelectorAll(".copybtn").forEach(function(b){b.addEventListener("click",function(){copy(b.dataset.copy,b)})});
+  document.querySelectorAll(".code .cpy").forEach(function(b){
+    b.addEventListener("click",function(){
+      var box=b.closest(".code"),pre=box.querySelector(".tabpanel:not([hidden]) code")||box.querySelector("pre code");
+      copy(pre.textContent,b);
+    });
+  });
+
+  /* scroll spy */
+  var links=[].slice.call(document.querySelectorAll(".rail a"));
+  var map={};links.forEach(function(a){map[a.getAttribute("href").slice(1)]=a});
+  var secs=Object.keys(map).map(function(id){return document.getElementById(id)}).filter(Boolean);
+  function spy(){
+    var y=window.scrollY+120,cur=secs[0];
+    secs.forEach(function(s){if(s.offsetTop<=y)cur=s});
+    links.forEach(function(a){a.classList.toggle("on",a===map[cur.id])});
+  }
+  addEventListener("scroll",spy,{passive:true});spy();
+
+  /* fold demo */
+  var angle=document.getElementById("angle"),hl=document.getElementById("hl"),hr=document.getElementById("hr"),
+      fl=document.getElementById("foldline"),rDeg=document.getElementById("r-deg"),rSt=document.getElementById("r-status"),rDiv=document.getElementById("r-div");
+  function render(){
+    var a=+angle.value,half=(180-a)/2;
+    hl.style.transform="rotateY("+(-half)+"deg)";hr.style.transform="rotateY("+half+"deg)";
+    var status=a<=4?".closed":a>=176?".fullyOpen":".partiallyOpen";
+    rDeg.textContent=a;rSt.textContent=status;
+    var active=status===".partiallyOpen";
+    rDiv.textContent=active?"active":"inactive";rDiv.classList.toggle("fold",active);
+    fl.style.opacity=active?.9:0;
+  }
+  angle.addEventListener("input",render);render();
+  var reduce=matchMedia("(prefers-reduced-motion: reduce)").matches,touched=false;
+  angle.addEventListener("pointerdown",function(){touched=true});angle.addEventListener("keydown",function(){touched=true});
+  if(!reduce){
+    var t0=performance.now();
+    (function loop(now){
+      if(touched)return;
+      var t=((now-t0)/1000)%8,v=t<4?180-(t/4)*170:10+((t-4)/4)*170;
+      angle.value=Math.round(v);render();
+      if(now-t0<16000)requestAnimationFrame(loop);else{angle.value=120;render()}
+    })(t0);
+  }
+})();
+</script>
+</body>
+</html>
